@@ -27,9 +27,11 @@ def data_saved():
 def get_data(forced_refresh = False):
     data = {}
     weapon_pages_url = {
-        'primary':'/wiki/Category:Primary_Weapons', 
-        'melee':'/wiki/Category:Melee_Weapons'
+        'primary':  '/wiki/Category:Primary_Weapons',
+        'secondary':'/wiki/Category:Secondary_Weapons',
+        'melee':    '/wiki/Category:Melee_Weapons'
     }
+    title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User blog:']
     
     for key, url in weapon_pages_url.items():
         weapon_page = get_page(wiki_url + url)
@@ -37,12 +39,11 @@ def get_data(forced_refresh = False):
         weapon_entries = weapon_list.find_all('a', {'class': 'category-page__member-link'})
         data[key] = {wep.attrs['title']:{'title': wep.attrs['title'], 'link': wep.attrs['href']} 
             for wep in weapon_entries
-            if not 'Conclave' in wep.attrs['title']
-            and not 'Category:' in wep.attrs['title']
-            and not 'File:' in wep.attrs['title']
-            and not 'PvP' in wep.attrs['title']}
+            if (len([bl for bl in title_blacklist 
+                if bl in wep.attrs['title']]) == 0)}
     pprint(data)
         
+
 
 #   save_data
 #   Saves the data to a local file
