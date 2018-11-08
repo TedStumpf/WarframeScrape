@@ -11,10 +11,11 @@ wiki_url = 'https://warframe.fandom.com'
 #   Returns a BeautifulSoup object for the given page
 #   url:    The URL of the target page
 def get_page(url):
-   req = requests.get(url)
-   if (req.status_code != 200):
-      return None
-   return BeautifulSoup(req.content, 'html.parser')
+    #print(url)
+    req = requests.get(url)
+    if (req.status_code != 200):
+        return None
+    return BeautifulSoup(req.content, 'html.parser')
 
 #   data_saved
 #   Returns True if there is a local copy of the data
