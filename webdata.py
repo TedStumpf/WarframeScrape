@@ -26,23 +26,23 @@ def data_saved():
 #   forced_refresh: If true, this forces a refresh from the wiki
 def get_data(forced_refresh = False):
     data = {}
-    weapon_pages_url = {
-        'primary':  '/wiki/Category:Primary_Weapons',
-        'secondary':'/wiki/Category:Secondary_Weapons',
-        'melee':    '/wiki/Category:Melee_Weapons'
-    }
-    title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User', 'Arcata']
+    weapon_pages_url = [ '/wiki/Category:Weapons' ]
+    title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User', 'Arcata', 'Plague Kripath', 'Module:', 'Weapon']
     
-    for key, url in weapon_pages_url.items():
+    for url in weapon_pages_url:
         weapon_page = get_page(wiki_url + url)
         weapon_list = weapon_page.find('div', {'class': 'category-page__members'})
         weapon_entries = weapon_list.find_all('a', {'class': 'category-page__member-link'})
         for wep in weapon_entries:
             if (len([bl for bl in title_blacklist if bl in wep.attrs['title']]) == 0):
-                data[wep.attrs['title']] = {
+                data[wep.attrs['title'].lower()] = {
                     'name': wep.attrs['title'], 
                     'link': wep.attrs['href']
                 }
+        next_page = weapon_page.find('a', {'class': 'category-page__pagination-next wds-button wds-is-secondary'})
+        if (next_page != None):
+            link = next_page.attrs['href'][len(wiki_url):]
+            weapon_pages_url.append(link)
     return data
 
 #   expand_data
@@ -84,7 +84,7 @@ def expand_data(item):
         #   Blueprint cost
         blueprint_cost = recipe_table.find('a', {'title': 'Blueprints'})
         blueprint_cost = blueprint_cost.parent.contents[-1].strip()
-        if (blueprint_cost != 'Price:N/A'):
+        if (not 'Price' in blueprint_cost):
             item['blueprint_cost'] = int(blueprint_cost.replace(',', ''))
 
         #   Foundry recipe
@@ -122,25 +122,53 @@ def expand_data(item):
                     item['blueprint_source'] = "Market"
     else:
         #   Items with no blueprint are purchased
+        #   Find the first paragraph
         acquired = item_page.find('span', {'id':'Acquisition'})
-        if (acquired != None):
+        paragraph = None
+        if (acquired == None):
+            acquired = item_page.find('a', {'title':'Credits'})
+            if (acquired != None):
+                paragraph = acquired.parent
+        else:
             paragraph = acquired.parent.next_sibling.next_sibling
+
+        #   Find the paragraph that mentions the cost
+        while ((paragraph != None) and (len(paragraph.find_all('a', {'title':'Credits'})) == 0) and (paragraph.name == 'p')):
+            paragraph = paragraph.next_sibling
+            #   Find next paragraph
+            while ((paragraph != None) and (paragraph.name != 'p')):
+                paragraph = paragraph.next_sibling
+
+        #   If such a paragraph exists, extract the relevant information
+        if (paragraph != None):
             icons = paragraph.find_all('a', {'class', 'image image-thumbnail link-internal'})
             names = []
             for icon in icons:
                 name = icon.attrs['title']
-                count = int(icon.next_sibling.next_sibling.string.replace(',', ''))
-                item['recipe'].append((name, count))
-                names.append(name)
-            if ('Standing' in names):
-                #   Items that take standing are from factions
-                item['blueprint_source'] = "Faction Standing"
+                if (not name in names):
+                    count = int(icon.next_sibling.next_sibling.string.replace(',', ''))
+                    item['recipe'].append((name, count))
+                    names.append(name)
+            if (names == ['Credits']):
+                #   Items that take only credits are from the market
+                item['blueprint_source'] = "Market" 
             elif ('Ducats' in names):
                 #   Items that take ducats are from Baro
                 item['blueprint_source'] = "Baro Ki'Teer"
-            elif (names == ['Credits']):
-                #   Items that take only credits are from the market
-                item['blueprint_source'] = "Market"
+            elif ('Standing' in names):
+                #   Items that take standing are from factions
+                item['blueprint_source'] = "Faction Standing"
+                factions = [
+                    ("Steel Meridian", "Vaykor"),
+                    ("Arbiters of Hexis", "Telos"),
+                    ("Cephalon Suda", "Synoid"),
+                    ("Red Veil", "Rakta"),
+                    ("New Loka", "Sancti"),
+                    ("The Perrin Sequence", "Secura")
+                ]
+                for fac in factions:
+                    if (fac[1] in item['name']):
+                        item['blueprint_source'] += " (" + fac[0] + ")"
 
 
 #   save_data
