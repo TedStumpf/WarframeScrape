@@ -23,6 +23,13 @@ def get_page(url):
 def data_saved():
     return os.path.exists('data/data.txt')
 
+#   data_expanded
+#   Returns if the data has been expanded
+#   data:   The data object to check
+def data_expanded(data):
+    return ('type' in data.keys())
+
+
 #   get_data
 #   Returns a dictionary of data
 #   forced_refresh: If True, this forces a refresh from the wiki
@@ -53,7 +60,10 @@ def get_data(forced_refresh = False):
 #   expand_data
 #   Gathers additional information about the item
 #   item: The dictionary item to expand
-def expand_data(item):
+#   forced_refresh: If True this forces the data to update
+def expand_data(item, forced_refresh = False):
+    if ((data_expanded(item)) and (not forced_refresh)):
+        return None
     #   Default Values
     item['mastery_rank'] = 0
     item['recipe'] = []
