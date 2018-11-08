@@ -39,14 +39,15 @@ def get_data(forced_refresh = False):
     else:
         data = {}
         weapon_pages_url = [ '/wiki/Category:Weapons' ]
-        title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User', 'Arcata', 'Plague Kripath', 'Module:', 'Weapon', 'Amp']
+        contains_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User', 'Module:', 'Weapon']
+        strict_blacklist = ['Arcata', 'Plague Kripath', 'Amp', 'Zaw', 'Kitgun']
         
         for url in weapon_pages_url:
             weapon_page = get_page(wiki_url + url)
             weapon_list = weapon_page.find('div', {'class': 'category-page__members'})
             weapon_entries = weapon_list.find_all('a', {'class': 'category-page__member-link'})
             for wep in weapon_entries:
-                if (len([bl for bl in title_blacklist if bl in wep.attrs['title']]) == 0):
+                if ((len([bl for bl in contains_blacklist if bl in wep.attrs['title']]) == 0) and (not wep.attrs['title'] in strict_blacklist)):
                     data[wep.attrs['title'].lower()] = {
                         'name': wep.attrs['title'], 
                         'link': wep.attrs['href']
