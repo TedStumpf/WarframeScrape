@@ -31,7 +31,7 @@ def get_data(forced_refresh = False):
         'secondary':'/wiki/Category:Secondary_Weapons',
         'melee':    '/wiki/Category:Melee_Weapons'
     }
-    title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User']
+    title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User', 'Arcata']
     
     for key, url in weapon_pages_url.items():
         weapon_page = get_page(wiki_url + url)
@@ -40,11 +40,108 @@ def get_data(forced_refresh = False):
         for wep in weapon_entries:
             if (len([bl for bl in title_blacklist if bl in wep.attrs['title']]) == 0):
                 data[wep.attrs['title']] = {
-                    'title': wep.attrs['title'], 
-                    'link': wep.attrs['href'], 
-                    'type': key
+                    'name': wep.attrs['title'], 
+                    'link': wep.attrs['href']
                 }
-    pprint(data)
+    return data
+
+#   expand_data
+#   Gathers additional information about the item
+#   item: The dictionary item to expand
+def expand_data(item):
+    #   Default Values
+    item['mastery_rank'] = 0
+    item['recipe'] = []
+    item['blueprint_source'] = "No blueprint found"
+    item['blueprint_cost'] = 0
+    item['research'] = []
+
+    item['type'] = "Undefined"
+    item['slot'] = "Undefined"
+
+    item_page = get_page(wiki_url + item['link'])
+    sidebar = item_page.find('aside')
+    if (sidebar != None):
+        #   Find Mastery
+        mastery_bar = sidebar.find('a', {'title': 'Mastery Rank'})
+        if (mastery_bar != None):
+            mastery = mastery_bar.parent.next_sibling.next_sibling.string
+            item['mastery_rank'] = int(mastery)
+        #   Find Slot
+        slot_bar = sidebar.find('a', {'title': 'Weapons'})
+        if (slot_bar != None):
+            slot = slot_bar.parent.next_sibling.next_sibling.string
+            item['slot'] = slot
+        #   Find Type
+        type_bar = sidebar.find('a', {'title': 'Mods'})
+        if (type_bar != None):
+            itype = type_bar.parent.next_sibling.next_sibling.string
+            item['type'] = itype
+
+    #   Crafting Information
+    recipe_table = item_page.find('table', {'class':'foundrytable'})
+    if (recipe_table != None):
+        #   Blueprint cost
+        blueprint_cost = recipe_table.find('a', {'title': 'Blueprints'})
+        blueprint_cost = blueprint_cost.parent.contents[-1].strip()
+        if (blueprint_cost != 'Price:N/A'):
+            item['blueprint_cost'] = int(blueprint_cost.replace(',', ''))
+
+        #   Foundry recipe
+        recipe_row = recipe_table.find('a', {'title':'Foundry'})
+        if (recipe_row != None):
+            recipe_row = recipe_row.parent.parent.next_sibling.next_sibling
+            ingredients = [i.find('a') for i in recipe_row.find_all('td') if (i.find('a') != None)]
+            for ing in ingredients:
+                name = ing.attrs['title']
+                count = int(ing.next_sibling.next_sibling.strip().replace(',', ''))
+                item['recipe'].append((name, count))
+
+        #   Clan research
+        research_row = recipe_table.find('a', {'title':'Research'})
+        if (research_row != None):
+            #   Source
+            item['blueprint_source'] = research_row.string
+            #   Recipe
+            research_row = research_row.parent.parent.next_sibling.next_sibling
+            ingredients = [i.find('a') for i in research_row.find_all('td') if (i.find('a') != None)]
+            for ing in ingredients:
+                name = ing.attrs['title']
+                count = int(ing.next_sibling.next_sibling.strip().replace(',', ''))
+                item['research'].append((name, count))
+        else:
+            if ('Prime' in item['name']):
+                #   Prime items come from relics
+                item['blueprint_source'] = "Relics"
+            else:
+                if (item['blueprint_cost'] == 0):
+                    #   Items that you can make but not by are special
+                    item['blueprint_source'] = "Special"
+                else:
+                    #   Blueprints that are not dropped or researched come from the market
+                    item['blueprint_source'] = "Market"
+    else:
+        #   Items with no blueprint are purchased
+        acquired = item_page.find('span', {'id':'Acquisition'})
+        if (acquired != None):
+            paragraph = acquired.parent.next_sibling.next_sibling
+            icons = paragraph.find_all('a', {'class', 'image image-thumbnail link-internal'})
+            names = []
+            for icon in icons:
+                name = icon.attrs['title']
+                count = int(icon.next_sibling.next_sibling.string.replace(',', ''))
+                item['recipe'].append((name, count))
+                names.append(name)
+            if ('Standing' in names):
+                #   Items that take standing are from factions
+                item['blueprint_source'] = "Faction Standing"
+            elif ('Ducats' in names):
+                #   Items that take ducats are from Baro
+                item['blueprint_source'] = "Baro Ki'Teer"
+            elif (names == ['Credits']):
+                #   Items that take only credits are from the market
+                item['blueprint_source'] = "Market"
+
 
 #   save_data
 #   Saves the data to a local file
