@@ -3,7 +3,7 @@
 import requests
 from pprint import pprint
 from bs4 import BeautifulSoup
-import os.path
+import os
 
 #   The base url for the warframe wikia
 wiki_url = 'https://warframe.fandom.com'
@@ -25,14 +25,14 @@ def data_saved():
 
 #   get_data
 #   Returns a dictionary of data
-#   forced_refresh: If true, this forces a refresh from the wiki
+#   forced_refresh: If True, this forces a refresh from the wiki
 def get_data(forced_refresh = False):
     if ((data_saved()) and (not forced_refresh)):
-        pass
+        return load_data()
     else:
         data = {}
         weapon_pages_url = [ '/wiki/Category:Weapons' ]
-        title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User', 'Arcata', 'Plague Kripath', 'Module:', 'Weapon']
+        title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User', 'Arcata', 'Plague Kripath', 'Module:', 'Weapon', 'Amp']
         
         for url in weapon_pages_url:
             weapon_page = get_page(wiki_url + url)
@@ -179,9 +179,17 @@ def expand_data(item):
 #   save_data
 #   Saves the data to a local file
 def save_data(data):
-    pass
+    if not (os.path.exists('data')):
+        os.makedirs('data')
+    f = open('data/data.txt', 'w')
+    print(data, file = f)
+    f.close()
 
 #   load_data
 #   Loads the data from a local file
 def load_data():
-    pass
+    f = open('data/data.txt', 'r')
+    data = eval(f.read())
+    f.close()
+    return data
+    
