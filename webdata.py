@@ -3,6 +3,7 @@
 import requests
 from pprint import pprint
 from bs4 import BeautifulSoup
+import os.path
 
 #   The base url for the warframe wikia
 wiki_url = 'https://warframe.fandom.com'
@@ -20,31 +21,34 @@ def get_page(url):
 #   data_saved
 #   Returns True if there is a local copy of the data
 def data_saved():
-    pass
+    return os.path.exists('data/data.txt')
 
 #   get_data
 #   Returns a dictionary of data
 #   forced_refresh: If true, this forces a refresh from the wiki
 def get_data(forced_refresh = False):
-    data = {}
-    weapon_pages_url = [ '/wiki/Category:Weapons' ]
-    title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User', 'Arcata', 'Plague Kripath', 'Module:', 'Weapon']
-    
-    for url in weapon_pages_url:
-        weapon_page = get_page(wiki_url + url)
-        weapon_list = weapon_page.find('div', {'class': 'category-page__members'})
-        weapon_entries = weapon_list.find_all('a', {'class': 'category-page__member-link'})
-        for wep in weapon_entries:
-            if (len([bl for bl in title_blacklist if bl in wep.attrs['title']]) == 0):
-                data[wep.attrs['title'].lower()] = {
-                    'name': wep.attrs['title'], 
-                    'link': wep.attrs['href']
-                }
-        next_page = weapon_page.find('a', {'class': 'category-page__pagination-next wds-button wds-is-secondary'})
-        if (next_page != None):
-            link = next_page.attrs['href'][len(wiki_url):]
-            weapon_pages_url.append(link)
-    return data
+    if ((data_saved()) and (not forced_refresh)):
+        pass
+    else:
+        data = {}
+        weapon_pages_url = [ '/wiki/Category:Weapons' ]
+        title_blacklist = ['Conclave', 'Category:', 'File:', 'PvP', 'User', 'Arcata', 'Plague Kripath', 'Module:', 'Weapon']
+        
+        for url in weapon_pages_url:
+            weapon_page = get_page(wiki_url + url)
+            weapon_list = weapon_page.find('div', {'class': 'category-page__members'})
+            weapon_entries = weapon_list.find_all('a', {'class': 'category-page__member-link'})
+            for wep in weapon_entries:
+                if (len([bl for bl in title_blacklist if bl in wep.attrs['title']]) == 0):
+                    data[wep.attrs['title'].lower()] = {
+                        'name': wep.attrs['title'], 
+                        'link': wep.attrs['href']
+                    }
+            next_page = weapon_page.find('a', {'class': 'category-page__pagination-next wds-button wds-is-secondary'})
+            if (next_page != None):
+                link = next_page.attrs['href'][len(wiki_url):]
+                weapon_pages_url.append(link)
+        return data
 
 #   expand_data
 #   Gathers additional information about the item
